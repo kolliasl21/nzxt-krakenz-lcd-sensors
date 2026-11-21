@@ -348,8 +348,6 @@ _main() {
 	esac
 }
 
-init
-
 if ! (return 2>/dev/null); then
 	init || exit $?
 	_main "$@"
