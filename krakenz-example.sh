@@ -11,8 +11,9 @@ IMG_PATH="$(mktemp -u /tmp/image.XXXX.png)"
 FONT="/usr/share/fonts/noto/NotoSans-MediumItalic.ttf"
 CLOCK=
 MON=
+REF_INTERV=.5
 IMG_RES="320x320"
-LC_NAME="NZXT"
+LC_NAME="kraken"
 ORIENTATION=-1
 CELSIUS=$'\xe2\x84\x83'
 DEG=$'\xc2\xb0'
@@ -33,7 +34,7 @@ init() {
 
 	liquidctl initialize all &>/dev/null
 
-	liquidctl -m "${LC_NAME}" list | grep -q "${LC_NAME}" || \
+	liquidctl -m "${LC_NAME}" list | grep -iq "${LC_NAME}" || \
 		{
 			echo "Device ${LC_NAME} not found. Quitting" >&2
 			return 1
@@ -93,7 +94,7 @@ cleanup() {
 	fi
 
 	unset FONT GIF SPEED BRIGHTNESS IMG_PATH CLOCK MON \
-		IMG_RES LC_NAME CELSIUS DEVICES \
+		REF_INTERV IMG_RES LC_NAME CELSIUS DEVICES \
 		NSENSORS JQ_READ JQ_WRITE
 }
 
@@ -107,6 +108,7 @@ print_usage() {
 		   static : 0-100% (single value for static speed)
 		-c change .gif
 		-t clock mode
+		-r set display refresh interval in seconds
 		-m monitor mode (add more "-m" flags to switch display)
 		-d load default profile
 		-p load user profile
@@ -361,14 +363,15 @@ _main() {
 	[[ -z $GIF ]] && echo "Warning! GIF not set" >&2
 
 	local OPTARG OPTIND flag
-	while getopts "b:lgs:c:tmdpho:" flag; do
+	while getopts "b:lgs:c:tr:mdpho:" flag; do
 		case "${flag}" in
 			b) BRIGHTNESS="${OPTARG}" ;;
 			l) set_lcd_mode "liquid" ;;
 			g) set_lcd_mode "gif" "${GIF}" ;;
 			s) SPEED+=("${OPTARG}") ;;
 			c) GIF="${OPTARG}" ;; 
-			t) CLOCK=1 ;; 
+			t) CLOCK=1 REF_INTERV=30 ;;
+			r) REF_INTERV="${OPTARG}" ;;
 			m) ((MON++)) ;;
 			d) BRIGHTNESS=50 SPEED=(25 40 30 60 35 80 40 100)
 				set_lcd_mode "liquid"; break ;;
@@ -387,16 +390,16 @@ _main() {
 
 	[[ ${#SPEED[@]} -gt 0 ]] && _set_pump_speed
 
-	[[ -n $CLOCK ]] && refresh_display "update_clock_image" "30"
+	[[ -n $CLOCK ]] && refresh_display "update_clock_image" "$REF_INTERV"
 
 	[[ -z $MON ]] && return 0
 
 	case $MON in
-		1) refresh_display "update_sensors_image"     ".5" ;;
-		2) refresh_display "update_sensors_image_alt" ".5" ;;
-		3) refresh_display "update_sensors_image_ddr" ".5" ;;
-		4) refresh_display "update_sensors_image_gpu" ".5" ;;
-		*) cycle_display ".5" ;;
+		1) refresh_display "update_sensors_image"     "$REF_INTERV" ;;
+		2) refresh_display "update_sensors_image_alt" "$REF_INTERV" ;;
+		3) refresh_display "update_sensors_image_ddr" "$REF_INTERV" ;;
+		4) refresh_display "update_sensors_image_gpu" "$REF_INTERV" ;;
+		*) cycle_display "$REF_INTERV" ;;
 	esac
 }
 
